@@ -1,12 +1,11 @@
 
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Part } from "@google/genai";
 
 export const analyzeIssue = async (title: string, description: string, base64Image?: string) => {
-  // Use process.env.API_KEY directly for initialization as per @google/genai guidelines
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   
   try {
-    const parts: any[] = [
+    const parts: Part[] = [
       { text: `Analyze this infrastructure issue for a local ward management system:
       Title: ${title}
       Description: ${description}
@@ -15,7 +14,6 @@ export const analyzeIssue = async (title: string, description: string, base64Ima
     ];
 
     if (base64Image) {
-      // Extract base64 data from the data URL
       const imageData = base64Image.split(',')[1];
       const mimeType = base64Image.split(',')[0].split(':')[1].split(';')[0];
       
@@ -29,7 +27,7 @@ export const analyzeIssue = async (title: string, description: string, base64Ima
 
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: { parts },
+      contents: [{ role: 'user', parts }],
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -45,7 +43,6 @@ export const analyzeIssue = async (title: string, description: string, base64Ima
       }
     });
 
-    // Access the .text property directly (not as a method) to extract content
     const jsonStr = response.text || "{}";
     return JSON.parse(jsonStr);
   } catch (error) {
