@@ -64,11 +64,10 @@ const Auth: React.FC<AuthProps> = ({ mode, onAuthSuccess, onNavigate, onNotifica
           email,
           role,
           ward,
-          password // Store password on signup
+          password
         };
         storage.saveUser(newUser);
         
-        // Login Notification
         const n = await composeAndSendEmail(newUser.email, 'LOGIN_ALERT', { user: newUser });
         if (n) onNotification(n);
         
@@ -77,7 +76,12 @@ const Auth: React.FC<AuthProps> = ({ mode, onAuthSuccess, onNavigate, onNotifica
         const user = storage.getUsers().find(u => u.email === identifier || u.username === identifier);
         
         if (user) {
-          // Check if password matches
+          if (user.role !== role) {
+            setError(`This account is registered as a ${user.role === UserRole.CITIZEN ? 'Citizen' : 'Councillor'}. Please switch the toggle above.`);
+            setIsLoading(false);
+            return;
+          }
+
           if (user.password === password) {
             const n = await composeAndSendEmail(user.email, 'LOGIN_ALERT', { user });
             if (n) onNotification(n);
@@ -112,7 +116,7 @@ const Auth: React.FC<AuthProps> = ({ mode, onAuthSuccess, onNavigate, onNotifica
             {mode === 'login' ? 'Namaste, welcome back.' : mode === 'forgot' ? 'Security & Access Control' : 'Join the movement for a better city.'}
           </h2>
           <p className="text-indigo-100 text-lg opacity-90">
-            {mode === 'forgot' ? "Recover your credentials using our AI-secured verification system." : isCitizen 
+            {isCitizen 
               ? "Empowering citizens to take charge of their neighborhood's development."
               : "Tools for Bengaluru's elected representatives to serve their wards better."}
           </p>
@@ -130,7 +134,7 @@ const Auth: React.FC<AuthProps> = ({ mode, onAuthSuccess, onNavigate, onNotifica
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode !== 'forgot' && (
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Role</label>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Login as</label>
                 <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
                   <button type="button" onClick={() => setRole(UserRole.CITIZEN)} className={`py-2 text-xs font-bold rounded-lg transition-all ${isCitizen ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}`}>Citizen</button>
                   <button type="button" onClick={() => setRole(UserRole.COUNCILLOR)} className={`py-2 text-xs font-bold rounded-lg transition-all ${!isCitizen ? 'bg-white shadow text-slate-900' : 'text-slate-500'}`}>Councillor</button>
@@ -161,7 +165,7 @@ const Auth: React.FC<AuthProps> = ({ mode, onAuthSuccess, onNavigate, onNotifica
             {mode === 'login' ? (
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Username or Email</label>
-                <input type="text" required value={identifier} onChange={(e) => setIdentifier(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all" placeholder="Username or Email" />
+                <input type="text" required value={identifier} onChange={(e) => setIdentifier(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all" placeholder="Enter credentials" />
               </div>
             ) : (
               <div className="space-y-1">
@@ -180,7 +184,7 @@ const Auth: React.FC<AuthProps> = ({ mode, onAuthSuccess, onNavigate, onNotifica
             {mode === 'signup' && (
               <div className="space-y-1">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Ward</label>
-                <select value={ward} onChange={(e) => setWard(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all appearance-none cursor-pointer">
+                <select value={ward} onChange={(e) => setWard(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all appearance-none cursor-pointer font-bold">
                   {WARDS.map(w => <option key={w.id} value={w.name}>{w.name}</option>)}
                 </select>
               </div>
@@ -195,9 +199,6 @@ const Auth: React.FC<AuthProps> = ({ mode, onAuthSuccess, onNavigate, onNotifica
                 {mode === 'login' ? "New here? " : "Know your way? "}
                 <button type="button" onClick={() => onNavigate(mode === 'login' ? 'signup' : 'login')} className="font-black text-indigo-600 hover:underline">{mode === 'login' ? 'Sign Up' : 'Sign In'}</button>
               </p>
-              {mode === 'login' && (
-                <button type="button" onClick={() => onNavigate('forgot' as any)} className="text-[10px] font-bold text-slate-400 hover:text-indigo-600 uppercase tracking-widest">Forgot Password?</button>
-              )}
             </div>
           </form>
         </div>
