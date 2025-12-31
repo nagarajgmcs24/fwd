@@ -18,7 +18,7 @@ export interface User {
   email: string;
   role: UserRole;
   ward: string;
-  password: string;
+  password?: string;
 }
 
 export interface Issue {
@@ -28,21 +28,19 @@ export interface Issue {
   category: string;
   status: IssueStatus;
   priority: 'Low' | 'Medium' | 'High';
-  reportedBy: string; // User name
-  reportedByEmail: string; // Citizen's email for follow-up
+  reportedBy: string;
+  reportedByEmail: string;
   reportedById: string;
   ward: string;
   createdAt: string;
-  location?: {
-    lat: number;
-    lng: number;
-    address?: string;
-  };
+  location?: { lat: number; lng: number; address?: string; };
   image?: string;
   aiAnalysis?: string;
 }
 
-export interface AuthState {
-  user: User | null;
-  isAuthenticated: boolean;
+export interface EmailNotification {
+  to: string;
+  subject: string;
+  body: string;
+  type: 'SECURITY' | 'DISPATCHED' | 'RECEIVED' | 'UPDATE' | 'RESET';
 }

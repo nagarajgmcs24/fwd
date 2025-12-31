@@ -1,10 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
-import { User, Issue, UserRole, IssueStatus } from '../types';
-import { storage } from '../services/storageService';
-import { composeAndSendEmail, EmailNotification } from '../services/notificationService';
-import { View } from '../App';
-import { WARDS } from '../constants/wards';
+import { User, Issue, UserRole, IssueStatus, EmailNotification } from '../types.ts';
+import { storage } from '../services/storageService.ts';
+import { composeSmartNotification } from '../services/aiService.ts';
+import { View } from '../App.tsx';
+import { WARDS } from '../constants/wards.ts';
 
 interface DashboardProps {
   user: User;
@@ -34,11 +33,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate, onNotification 
     const updatedIssue = storage.getIssues().find(i => i.id === id);
     
     if (updatedIssue) {
-      // Trigger Smart Notification to Citizen
-      const notification = await composeAndSendEmail(
-        updatedIssue.reportedByEmail, 
+      const notification = await composeSmartNotification(
         'STATUS_CHANGE', 
-        { issue: updatedIssue }
+        { issue: updatedIssue, email: updatedIssue.reportedByEmail }
       );
       if (notification) {
         onNotification(notification);
@@ -69,7 +66,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate, onNotification 
           </h1>
           <p className="text-slate-500 font-medium">Monitoring issues in <span className="text-indigo-600">{user.ward}</span></p>
         </div>
-        {user.role === UserRole.CITIZEN && (
+        {!isCouncillor && (
           <button 
             onClick={() => onNavigate('report')}
             className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-black flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 hover:scale-[1.02] active:scale-95"
@@ -79,7 +76,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate, onNotification 
         )}
       </header>
 
-      {/* Hero Visual for Dashboard */}
       <div className="grid md:grid-cols-3 gap-6">
         <div className="md:col-span-2 bg-slate-900 rounded-[2.5rem] p-8 text-white relative overflow-hidden flex items-center min-h-[180px]">
           <img 
@@ -106,7 +102,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate, onNotification 
         </div>
       </div>
 
-      {/* Citizen View: Councillor Information */}
       {!isCouncillor && activeWard && (
         <div className="bg-white border border-slate-100 shadow-sm rounded-[2rem] p-8 flex flex-col md:flex-row items-center gap-8 overflow-hidden relative group">
           <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center text-3xl flex-shrink-0 shadow-inner group-hover:scale-110 transition-transform">
@@ -131,9 +126,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate, onNotification 
               </div>
             </div>
           </div>
-          <div className="absolute right-0 top-0 h-full w-48 overflow-hidden hidden lg:block opacity-[0.03] pointer-events-none transition-opacity group-hover:opacity-[0.07]">
-             <img src="https://images.unsplash.com/photo-1541829070764-84a7d30dee6b?auto=format&fit=crop&q=80&w=400" className="h-full w-full object-cover" alt="Bengaluru Architecture Decorative" />
-          </div>
         </div>
       )}
 
@@ -150,9 +142,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate, onNotification 
               </button>
             ))}
           </div>
-          <p className="text-xs font-bold text-slate-400 hidden sm:block">
-            Found {filteredIssues.length} reports
-          </p>
         </div>
 
         {filteredIssues.length > 0 ? (
@@ -173,55 +162,25 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate, onNotification 
                       {issue.status.replace('_', ' ')}
                     </span>
                   </div>
-                  {issue.priority === 'High' && (
-                    <div className="absolute top-4 left-4 bg-rose-600 text-white px-3 py-1 rounded-lg text-[9px] font-black uppercase shadow-lg flex items-center gap-1.5">
-                       <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping"></span>
-                       Urgent
-                    </div>
-                  )}
                 </div>
                 
                 <div className="p-6 space-y-4 flex-grow">
                   <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.15em]">
                     <span className="text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">{issue.category}</span>
-                    <span className="text-slate-400">{new Date(issue.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</span>
+                    <span className="text-slate-400">{new Date(issue.createdAt).toLocaleDateString()}</span>
                   </div>
 
                   <div className="space-y-1">
-                    <h3 className="font-bold text-slate-900 leading-tight group-hover:text-indigo-600 transition-colors">{issue.title}</h3>
-                    <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{issue.description}</p>
+                    <h3 className="font-bold text-slate-900 leading-tight">{issue.title}</h3>
+                    <p className="text-xs text-slate-500 line-clamp-2">{issue.description}</p>
                   </div>
 
-                  {issue.location && (
-                    <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold bg-slate-50 px-3 py-2 rounded-xl border border-slate-100">
-                      <i className="fas fa-location-dot text-indigo-500"></i>
-                      <span>GPS: {issue.location.lat.toFixed(4)}, {issue.location.lng.toFixed(4)}</span>
-                    </div>
-                  )}
-
-                  {isCouncillor && (
-                    <div className="bg-slate-900 p-4 rounded-2xl text-[10px] space-y-2 border border-slate-800 shadow-inner">
-                      <p className="font-black text-slate-500 uppercase tracking-widest border-b border-slate-800 pb-1">Citizen Contact</p>
-                      <div className="space-y-1">
-                        <p className="text-slate-200 flex items-center gap-2">
-                          <i className="fas fa-user-circle text-indigo-400"></i> {issue.reportedBy}
-                        </p>
-                        <p className="text-indigo-300 font-medium flex items-center gap-2">
-                          <i className="fas fa-envelope text-indigo-400"></i> {issue.reportedByEmail}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
                   {issue.aiAnalysis && (
-                    <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50 relative overflow-hidden">
-                      <div className="absolute right-2 top-2 opacity-5">
-                         <i className="fas fa-robot text-2xl"></i>
-                      </div>
+                    <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50 relative">
                       <p className="text-[10px] font-black text-indigo-500 uppercase mb-1.5 flex items-center gap-2">
                         <i className="fas fa-microchip"></i> AI Insight
                       </p>
-                      <p className="text-[11px] text-indigo-900/80 leading-relaxed font-medium">"{issue.aiAnalysis}"</p>
+                      <p className="text-[11px] text-indigo-900/80 font-medium leading-relaxed">"{issue.aiAnalysis}"</p>
                     </div>
                   )}
                 </div>
@@ -231,76 +190,27 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate, onNotification 
                     <button 
                       disabled={updatingId === issue.id}
                       onClick={() => handleStatusChange(issue.id, issue.status === IssueStatus.PENDING ? IssueStatus.IN_PROGRESS : IssueStatus.RESOLVED)}
-                      className={`flex-grow py-3.5 rounded-xl font-black text-[11px] uppercase tracking-wider text-white shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 ${updatingId === issue.id ? 'opacity-50 cursor-not-allowed' : (issue.status === IssueStatus.PENDING ? 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100' : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-100')}`}
+                      className="flex-grow py-3.5 bg-indigo-600 text-white rounded-xl font-black text-[11px] uppercase tracking-wider hover:bg-indigo-700 active:scale-95 disabled:opacity-50"
                     >
-                      {updatingId === issue.id ? (
-                        <i className="fas fa-circle-notch fa-spin"></i>
-                      ) : (
-                        <>
-                          <i className={`fas ${issue.status === IssueStatus.PENDING ? 'fa-play' : 'fa-check-double'}`}></i>
-                          {issue.status === IssueStatus.PENDING ? 'Start Fix' : 'Resolve'}
-                        </>
-                      )}
+                      {issue.status === IssueStatus.PENDING ? 'Start Fix' : 'Resolve'}
                     </button>
                     <button 
                       disabled={updatingId === issue.id}
                       onClick={() => handleStatusChange(issue.id, IssueStatus.REJECTED)}
-                      className="w-14 h-12 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl hover:bg-rose-600 hover:text-white transition-all flex items-center justify-center shadow-sm active:scale-90 disabled:opacity-50"
-                      title="Reject Report"
+                      className="w-14 h-12 bg-rose-50 text-rose-600 border border-rose-100 rounded-xl hover:bg-rose-600 hover:text-white transition-all flex items-center justify-center"
                     >
                       <i className="fas fa-times"></i>
                     </button>
                   </div>
                 )}
-                
-                {/* Status indicator for resolved/rejected */}
-                {(issue.status === IssueStatus.RESOLVED || issue.status === IssueStatus.REJECTED) && (
-                   <div className="px-6 pb-6 pt-2">
-                      <div className={`w-full py-2.5 rounded-xl border text-[10px] font-black uppercase tracking-[0.2em] text-center ${issue.status === IssueStatus.RESOLVED ? 'bg-emerald-50 border-emerald-100 text-emerald-600' : 'bg-rose-50 border-rose-100 text-rose-600'}`}>
-                         <i className={`fas ${issue.status === IssueStatus.RESOLVED ? 'fa-check-circle' : 'fa-ban'} mr-2`}></i>
-                         Case {issue.status}
-                      </div>
-                   </div>
-                )}
               </div>
             ))}
           </div>
         ) : (
-          <div className="text-center py-32 bg-white rounded-[3rem] border-2 border-dashed border-slate-100 flex flex-col items-center justify-center px-8">
-            <div className="relative mb-8">
-              <img 
-                src="https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&q=80&w=400" 
-                className="w-48 h-48 object-cover rounded-[2.5rem] opacity-40 grayscale" 
-                alt="No reports" 
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent"></div>
-            </div>
-            <h3 className="text-xl font-black text-slate-300 uppercase tracking-widest">No Reports Found</h3>
-            <p className="text-slate-400 text-sm mt-2 max-w-sm">Everything looks clear in your current view. New reports will appear here as they are filed.</p>
+          <div className="text-center py-24 bg-white rounded-[3rem] border-2 border-dashed border-slate-100">
+            <p className="text-slate-400 font-bold uppercase tracking-widest">No reports in this category</p>
           </div>
         )}
-      </div>
-
-      {/* Secondary Illustrative Section for Dashboard */}
-      <div className="grid md:grid-cols-2 gap-8 pt-10">
-         <div className="bg-indigo-600 p-1 rounded-[2.5rem] shadow-xl shadow-indigo-100 group">
-           <div className="bg-white p-8 rounded-[2.3rem] flex gap-6 items-center">
-              <img src="https://images.unsplash.com/photo-1576435728678-68d0fbf94e91?auto=format&fit=crop&q=80&w=300" className="w-24 h-24 rounded-[1.8rem] object-cover shadow-lg group-hover:rotate-3 transition-transform" alt="Performance Stats" />
-              <div>
-                 <h3 className="font-black text-slate-900 text-lg">City-wide Ranking</h3>
-                 <p className="text-xs font-medium text-slate-500 leading-relaxed">Your ward is currently <span className="text-indigo-600 font-bold">#4 in Bengaluru</span> for infrastructure responsiveness. Keep up the momentum!</p>
-              </div>
-           </div>
-         </div>
-         <div className="bg-emerald-600 p-1 rounded-[2.5rem] shadow-xl shadow-emerald-100 group">
-           <div className="bg-white p-8 rounded-[2.3rem] flex gap-6 items-center">
-              <img src="https://images.unsplash.com/photo-1596760411126-af948542121c?auto=format&fit=crop&q=80&w=300" className="w-24 h-24 rounded-[1.8rem] object-cover shadow-lg group-hover:-rotate-3 transition-transform" alt="Community Pride" />
-              <div>
-                 <h3 className="font-black text-slate-900 text-lg">Citizen Heroes</h3>
-                 <p className="text-xs font-medium text-slate-500 leading-relaxed">Active contributors in <span className="text-emerald-600 font-bold">{user.ward}</span> are earning recognition points. Check your community standing.</p>
-              </div>
-           </div>
-         </div>
       </div>
     </div>
   );

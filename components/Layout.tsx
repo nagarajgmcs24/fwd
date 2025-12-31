@@ -1,7 +1,6 @@
-
 import React from 'react';
-import { User } from '../types';
-import { View } from '../App';
+import { User } from '../types.ts';
+import { View } from '../App.tsx';
 
 interface LayoutProps {
   user: User | null;

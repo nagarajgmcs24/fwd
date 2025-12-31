@@ -1,109 +1,79 @@
-
 import React, { useState, useEffect } from 'react';
-import Layout from './components/Layout';
-import Home from './pages/Home';
-import Auth from './pages/Auth';
-import Dashboard from './pages/Dashboard';
-import ReportIssue from './pages/ReportIssue';
-import { User } from './types';
-import { storage } from './services/storageService';
-import { EmailNotification } from './services/notificationService';
+import Layout from './components/Layout.tsx';
+import Home from './pages/Home.tsx';
+import Auth from './pages/Auth.tsx';
+import Dashboard from './pages/Dashboard.tsx';
+import ReportIssue from './pages/ReportIssue.tsx';
+import { User, EmailNotification } from './types.ts';
+import { storage } from './services/storageService.ts';
 
 export type View = 'home' | 'login' | 'signup' | 'dashboard' | 'report' | 'forgot';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(storage.getCurrentUser());
-  const [currentView, setCurrentView] = useState<View>(user ? 'dashboard' : 'home');
+  const [view, setView] = useState<View>(user ? 'dashboard' : 'home');
   const [toast, setToast] = useState<EmailNotification | null>(null);
 
-  useEffect(() => {
-    storage.seedData();
+  useEffect(() => { 
+    storage.seedData(); 
   }, []);
 
-  const showEmailToast = (notification: EmailNotification) => {
-    setToast(notification);
-    setTimeout(() => setToast(null), 6000);
+  const handleNotify = (n: EmailNotification) => {
+    setToast(n);
+    setTimeout(() => setToast(null), 5000);
   };
 
   const handleAuthSuccess = (u: User) => {
     setUser(u);
     storage.setCurrentUser(u);
-    setCurrentView('dashboard');
+    setView('dashboard');
   };
 
   const handleLogout = () => {
-    setUser(null);
     storage.setCurrentUser(null);
-    setCurrentView('home');
-  };
-
-  const navigate = (view: View) => {
-    setCurrentView(view);
-  };
-
-  const renderContent = () => {
-    if (currentView === 'home') return <Home onNavigate={navigate} />;
-    
-    // Auth-related views
-    if (['login', 'signup', 'forgot'].includes(currentView) && !user) {
-      return (
-        <Auth 
-          mode={currentView as any} 
-          onAuthSuccess={handleAuthSuccess} 
-          onNavigate={(v) => navigate(v as View)}
-          onNotification={showEmailToast}
-        />
-      );
-    }
-
-    if (!user) {
-      setCurrentView('login');
-      return null;
-    }
-
-    if (currentView === 'dashboard') return <Dashboard user={user} onNavigate={navigate} onNotification={showEmailToast} />;
-    if (currentView === 'report') return <ReportIssue user={user} onSuccess={() => navigate('dashboard')} onNavigate={navigate} onNotification={showEmailToast} />;
-
-    return <Dashboard user={user} onNavigate={navigate} onNotification={showEmailToast} />;
+    setUser(null);
+    setView('home');
   };
 
   return (
-    <Layout user={user} onLogout={handleLogout} onNavigate={navigate}>
-      {renderContent()}
+    <Layout user={user} onLogout={handleLogout} onNavigate={(v: View) => setView(v)}>
+      {view === 'home' && <Home onNavigate={setView} />}
+      
+      {(view === 'login' || view === 'signup' || view === 'forgot') && (
+        <Auth 
+          mode={view as 'login' | 'signup' | 'forgot'} 
+          onAuthSuccess={handleAuthSuccess} 
+          onNavigate={setView} 
+          onNotification={handleNotify} 
+        />
+      )}
+      
+      {view === 'dashboard' && user && (
+        <Dashboard user={user} onNavigate={setView} onNotification={handleNotify} />
+      )}
+      
+      {view === 'report' && user && (
+        <ReportIssue user={user} onSuccess={() => setView('dashboard')} onNavigate={setView} onNotification={handleNotify} />
+      )}
 
-      {/* Global Email Notification Toast */}
       {toast && (
-        <div className="fixed bottom-8 right-8 z-[100] animate-bounce-in max-w-sm w-full">
-          <div className="bg-slate-900 text-white rounded-[2rem] p-6 shadow-2xl border border-white/10 backdrop-blur-xl">
-            <div className="flex items-start gap-4">
-              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg ${toast.type === 'SECURITY' ? 'bg-rose-600 shadow-rose-500/20' : 'bg-indigo-600 shadow-indigo-500/20'}`}>
-                <i className={`fas ${toast.type === 'SECURITY' ? 'fa-shield-halved' : 'fa-paper-plane'} animate-pulse`}></i>
-              </div>
-              <div className="space-y-1">
-                <p className={`text-[10px] font-black uppercase tracking-widest ${toast.type === 'SECURITY' ? 'text-rose-400' : 'text-indigo-400'}`}>
-                  {toast.type === 'SECURITY' ? 'System Alert' : 'Notification Dispatched'}
-                </p>
-                <h4 className="font-bold text-sm">To: {toast.to}</h4>
-                <div className="mt-2 pt-2 border-t border-white/5">
-                  <p className="text-[10px] text-slate-500 italic line-clamp-2">
-                    "{toast.subject}"
-                  </p>
-                </div>
-              </div>
+        <div className="fixed bottom-6 right-6 z-[100] bg-slate-900 text-white p-6 rounded-2xl shadow-2xl border border-white/10 max-w-xs animate-slide-in">
+          <div className="flex items-start gap-4">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+              toast.type === 'SECURITY' ? 'bg-rose-500/20 text-rose-400' : 'bg-indigo-500/20 text-indigo-400'
+            }`}>
+              <i className={`fas ${toast.type === 'SECURITY' ? 'fa-shield-halved' : 'fa-envelope-open-text'}`}></i>
+            </div>
+            <div className="flex-grow">
+              <p className="text-[10px] font-black uppercase tracking-widest opacity-50 mb-1">
+                {toast.type === 'SECURITY' ? 'Security Alert' : 'Ward Notification'}
+              </p>
+              <p className="font-bold text-sm leading-tight mb-2">{toast.subject}</p>
+              <p className="text-[10px] text-slate-400 italic line-clamp-2">{toast.body.substring(0, 100)}...</p>
             </div>
           </div>
         </div>
       )}
-      <style>{`
-        @keyframes bounce-in {
-          0% { transform: translateY(100%) scale(0.9); opacity: 0; }
-          70% { transform: translateY(-10px) scale(1.02); opacity: 1; }
-          100% { transform: translateY(0) scale(1); opacity: 1; }
-        }
-        .animate-bounce-in {
-          animation: bounce-in 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-      `}</style>
     </Layout>
   );
 };
