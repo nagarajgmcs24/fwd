@@ -34,71 +34,81 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate, onNotification 
 
   // Map Initialization and Update Logic
   useEffect(() => {
-    if (viewMode === 'MAP' && !mapRef.current) {
-      // Default to Bengaluru coordinates if no issues found
-      const centerLat = 12.9716;
-      const centerLng = 77.5946;
-      
-      // @ts-ignore
-      mapRef.current = L.map('issues-map').setView([centerLat, centerLng], 12);
-      
-      // @ts-ignore
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-      }).addTo(mapRef.current);
-    }
-
-    if (viewMode === 'MAP' && mapRef.current) {
-      // Clear existing markers
-      markersRef.current.forEach(m => m.remove());
-      markersRef.current = [];
-
-      const bounds = [];
-
-      filteredIssues.forEach(issue => {
-        if (issue.location && issue.location.lat && issue.location.lng) {
-          const color = getStatusHexColor(issue.status);
+    // Only initialize map if in MAP mode and map element exists
+    if (viewMode === 'MAP') {
+      // Small timeout to ensure DOM is ready
+      const timer = setTimeout(() => {
+        if (!mapRef.current && document.getElementById('issues-map')) {
+          // Default center (Bengaluru)
+          const centerLat = 12.9716;
+          const centerLng = 77.5946;
           
-          // Custom HTML icon for markers
           // @ts-ignore
-          const icon = L.divIcon({
-            className: 'custom-div-icon',
-            html: `<div style="background-color: ${color}; width: 14px; height: 14px; border: 3px solid white; border-radius: 50%; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);"></div>`,
-            iconSize: [14, 14],
-            iconAnchor: [7, 7]
+          if (typeof L !== 'undefined') {
+            // @ts-ignore
+            mapRef.current = L.map('issues-map').setView([centerLat, centerLng], 12);
+            
+            // @ts-ignore
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+              attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+              subdomains: 'abcd',
+              maxZoom: 20
+            }).addTo(mapRef.current);
+          }
+        }
+
+        if (mapRef.current) {
+          // Clear existing markers
+          markersRef.current.forEach(m => m.remove());
+          markersRef.current = [];
+
+          const bounds: any[] = [];
+
+          filteredIssues.forEach(issue => {
+            if (issue.location && issue.location.lat && issue.location.lng) {
+              const color = getStatusHexColor(issue.status);
+              
+              // @ts-ignore
+              const icon = L.divIcon({
+                className: 'custom-div-icon',
+                html: `<div style="background-color: ${color}; width: 14px; height: 14px; border: 3px solid white; border-radius: 50%; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);"></div>`,
+                iconSize: [14, 14],
+                iconAnchor: [7, 7],
+                popupAnchor: [0, -10]
+              });
+
+              // @ts-ignore
+              const marker = L.marker([issue.location.lat, issue.location.lng], { icon })
+                .addTo(mapRef.current)
+                .bindPopup(`
+                  <div class="font-sans min-w-[200px]">
+                    <div class="flex items-center justify-between gap-2 mb-2">
+                      <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded border" style="background-color: ${color}15; color: ${color}; border-color: ${color}30">
+                        ${issue.status.replace('_', ' ')}
+                      </span>
+                      <span class="text-[10px] font-bold text-slate-400">${issue.category}</span>
+                    </div>
+                    <h4 class="font-bold text-sm text-slate-900 leading-tight mb-1">${issue.title}</h4>
+                    <p class="text-xs text-slate-500 line-clamp-2 mb-2">${issue.description}</p>
+                    ${issue.image ? `<div class="w-full h-24 rounded-lg bg-slate-100 bg-cover bg-center mb-2" style="background-image: url('${issue.image}')"></div>` : ''}
+                    <div class="text-[9px] font-medium text-slate-400">Reported by: ${issue.reportedBy}</div>
+                  </div>
+                `, { className: 'custom-popup' });
+              
+              markersRef.current.push(marker);
+              bounds.push([issue.location.lat, issue.location.lng]);
+            }
           });
 
-          // @ts-ignore
-          const marker = L.marker([issue.location.lat, issue.location.lng], { icon })
-            .addTo(mapRef.current)
-            .bindPopup(`
-              <div class="p-1 space-y-2">
-                <div class="flex items-center justify-between gap-2">
-                  <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded border" style="background-color: ${color}20; color: ${color}; border-color: ${color}40">
-                    ${issue.status.replace('_', ' ')}
-                  </span>
-                  <span class="text-[9px] font-bold text-slate-400">${issue.category}</span>
-                </div>
-                <h4 class="font-bold text-sm text-slate-900 leading-tight">${issue.title}</h4>
-                <p class="text-[10px] text-slate-500 line-clamp-2">${issue.description}</p>
-                <div class="pt-1 text-[9px] font-medium text-slate-400">Reported by: ${issue.reportedBy}</div>
-              </div>
-            `, { className: 'custom-popup' });
-          
-          markersRef.current.push(marker);
-          bounds.push([issue.location.lat, issue.location.lng]);
+          if (bounds.length > 0) {
+            // @ts-ignore
+            mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+          }
         }
-      });
+      }, 100);
 
-      if (bounds.length > 0) {
-        // @ts-ignore
-        mapRef.current.fitBounds(bounds, { padding: [50, 50] });
-      }
+      return () => clearTimeout(timer);
     }
-
-    return () => {
-      // Cleanup happens only if viewMode changes back or unmounts
-    };
   }, [viewMode, filteredIssues]);
 
   const handleStatusChange = async (id: string, status: IssueStatus) => {
@@ -287,9 +297,9 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate, onNotification 
           )
         ) : (
           <div className="relative animate-slide-up">
-            <div id="issues-map" className="border-2 border-white shadow-2xl bg-slate-100"></div>
+            <div id="issues-map" className="border-2 border-white shadow-2xl bg-slate-100 h-[600px] rounded-[2.5rem]"></div>
             {filteredIssues.filter(i => !i.location).length > 0 && (
-              <div className="absolute bottom-6 left-6 z-[20] bg-white/90 backdrop-blur px-4 py-2 rounded-xl text-[10px] font-bold text-slate-500 border border-slate-200">
+              <div className="absolute bottom-6 left-6 z-[20] bg-white/90 backdrop-blur px-4 py-2 rounded-xl text-[10px] font-bold text-slate-500 border border-slate-200 shadow-lg">
                 <i className="fas fa-info-circle mr-2 text-indigo-500"></i>
                 {filteredIssues.filter(i => !i.location).length} issues missing GPS data hidden from map
               </div>
