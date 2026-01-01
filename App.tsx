@@ -10,12 +10,28 @@ import { apiService } from './services/apiService.ts';
 export type View = 'home' | 'login' | 'signup' | 'dashboard' | 'report';
 
 const App: React.FC = () => {
-  const [user, setUser] = useState<User | null>(storage.getCurrentUser());
-  const [view, setView] = useState<View>(user ? 'dashboard' : 'home');
+  const [user, setUser] = useState<User | null>(null);
+  const [view, setView] = useState<View>('home');
   const [toast, setToast] = useState<EmailNotification | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => { 
-    storage.seedData(); 
+  useEffect(() => {
+    // Check if user is already logged in
+    const checkAuth = async () => {
+      if (apiService.isAuthenticated()) {
+        try {
+          const currentUser = await apiService.getCurrentUser();
+          setUser(currentUser);
+          setView('dashboard');
+        } catch (error) {
+          console.error('Failed to fetch current user:', error);
+          apiService.logout();
+        }
+      }
+      setIsLoading(false);
+    };
+
+    checkAuth();
   }, []);
 
   const handleNotify = (n: EmailNotification) => {
