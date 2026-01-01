@@ -129,21 +129,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate, onNotification 
 
   const handleStatusChange = async (id: string, status: IssueStatus) => {
     setUpdatingId(id);
-    storage.updateIssueStatus(id, status);
-    const updatedIssue = storage.getIssues().find(i => i.id === id);
-    
-    if (updatedIssue) {
-      const notification = await composeSmartNotification(
-        'STATUS_CHANGE', 
-        { issue: updatedIssue, email: updatedIssue.reportedByEmail }
-      );
-      if (notification) {
-        onNotification(notification);
-      }
+    try {
+      const result = await apiService.updateIssueStatus(id, status);
+      setIssues(prev => prev.map(i => i.id === id ? result.issue : i));
+    } catch (error) {
+      console.error('Failed to update issue status:', error);
+    } finally {
+      setUpdatingId(null);
     }
-    
-    setIssues(prev => prev.map(i => i.id === id ? { ...i, status } : i));
-    setUpdatingId(null);
   };
 
   const getStatusHexColor = (status: IssueStatus) => {
