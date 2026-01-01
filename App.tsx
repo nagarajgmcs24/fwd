@@ -41,12 +41,11 @@ const App: React.FC = () => {
 
   const handleAuthSuccess = (u: User) => {
     setUser(u);
-    storage.setCurrentUser(u);
     setView('dashboard');
   };
 
   const handleLogout = () => {
-    storage.setCurrentUser(null);
+    apiService.logout();
     setUser(null);
     setView('home');
   };
