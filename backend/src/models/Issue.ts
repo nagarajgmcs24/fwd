@@ -28,7 +28,7 @@ export enum IssueCategory {
 export interface IIssue extends Document {
   title: string;
   description: string;
-  category: IssueCat;
+  category: IssueCategory;
   status: IssueStatus;
   priority: IssuePriority;
   ward: string;
