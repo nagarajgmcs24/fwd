@@ -31,32 +31,24 @@ const ReportIssue: React.FC<ReportIssueProps> = ({ user, onSuccess, onNavigate, 
     e.preventDefault();
     setLoading(true);
 
-    const analysis = await analyzeIssue(title, description, image || undefined);
-    
-    const newIssue: Issue = {
-      id: Math.random().toString(36).substr(2, 9),
-      title, description, image: image || undefined,
-      category: analysis.category || 'General',
-      status: IssueStatus.PENDING,
-      priority: analysis.priority || 'Medium',
-      reportedBy: user.name, reportedByEmail: user.email, reportedById: user.id,
-      ward: user.ward, createdAt: new Date().toISOString(),
-      aiAnalysis: analysis.summary
-    };
+    try {
+      const analysis = await analyzeIssue(title, description, image || undefined);
 
-    storage.addIssue(newIssue);
+      const result = await apiService.createIssue({
+        title,
+        description,
+        category: analysis.category || 'Other',
+        priority: analysis.priority || 'Medium',
+        ward: user.ward,
+        image: image || undefined,
+      });
 
-    const councillor = WARDS.find(w => w.name === user.ward);
-    if (councillor) {
-      const n1 = await composeSmartNotification('NEW_REPORT', { issue: newIssue, ward: user.ward, email: councillor.email });
-      if (n1) onNotification(n1);
+      setLoading(false);
+      onSuccess();
+    } catch (error) {
+      console.error('Failed to create issue:', error);
+      setLoading(false);
     }
-
-    const n2 = await composeSmartNotification('REPORT_CONFIRMATION', { issue: newIssue, user });
-    if (n2) onNotification(n2);
-
-    setLoading(false);
-    onSuccess();
   };
 
   return (
