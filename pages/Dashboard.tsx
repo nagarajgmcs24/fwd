@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Issue, UserRole, IssueStatus, EmailNotification } from '../types.ts';
-import { storage } from '../services/storageService.ts';
-import { composeSmartNotification } from '../services/ai.ts';
+import { apiService } from '../services/apiService.ts';
 import { View } from '../App.tsx';
 import { WARDS } from '../constants/wards.ts';
 
