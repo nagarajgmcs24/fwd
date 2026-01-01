@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Issue, UserRole, IssueStatus, EmailNotification } from '../types.ts';
-import { storage } from '../services/storageService.ts';
-import { composeSmartNotification } from '../services/ai.ts';
+import { apiService } from '../services/apiService.ts';
 import { View } from '../App.tsx';
 import { WARDS } from '../constants/wards.ts';
 
@@ -23,11 +22,28 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate, onNotification 
   const activeWard = WARDS.find(w => w.name === user.ward);
 
   useEffect(() => {
-    const allIssues = storage.getIssues();
-    const filtered = user.role === UserRole.CITIZEN 
-      ? allIssues.filter(i => i.reportedById === user.id)
-      : allIssues.filter(i => i.ward === user.ward);
-    setIssues(filtered);
+    const fetchIssues = async () => {
+      try {
+        const result = await apiService.getIssues({ ward: user.ward });
+        setIssues(result.issues);
+
+        // Initialize Socket.io for real-time updates
+        apiService.initializeSocket(user.ward, (data) => {
+          // Refresh issues on real-time updates
+          apiService.getIssues({ ward: user.ward }).then(result => {
+            setIssues(result.issues);
+          });
+        });
+      } catch (error) {
+        console.error('Failed to fetch issues:', error);
+      }
+    };
+
+    fetchIssues();
+
+    return () => {
+      apiService.disconnectSocket();
+    };
   }, [user]);
 
   const filteredIssues = filter === 'ALL' ? issues : issues.filter(i => i.status === filter);
@@ -113,21 +129,14 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate, onNotification 
 
   const handleStatusChange = async (id: string, status: IssueStatus) => {
     setUpdatingId(id);
-    storage.updateIssueStatus(id, status);
-    const updatedIssue = storage.getIssues().find(i => i.id === id);
-    
-    if (updatedIssue) {
-      const notification = await composeSmartNotification(
-        'STATUS_CHANGE', 
-        { issue: updatedIssue, email: updatedIssue.reportedByEmail }
-      );
-      if (notification) {
-        onNotification(notification);
-      }
+    try {
+      const result = await apiService.updateIssueStatus(id, status);
+      setIssues(prev => prev.map(i => i.id === id ? result.issue : i));
+    } catch (error) {
+      console.error('Failed to update issue status:', error);
+    } finally {
+      setUpdatingId(null);
     }
-    
-    setIssues(prev => prev.map(i => i.id === id ? { ...i, status } : i));
-    setUpdatingId(null);
   };
 
   const getStatusHexColor = (status: IssueStatus) => {

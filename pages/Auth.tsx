@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { UserRole, User } from '../types.ts';
-import { storage } from '../services/storageService.ts';
+import { apiService } from '../services/apiService.ts';
 import { WARDS } from '../constants/wards.ts';
-import { composeSmartNotification } from '../services/ai.ts';
 import { View } from '../App.tsx';
 
 interface AuthProps {
@@ -28,24 +27,23 @@ const Auth: React.FC<AuthProps> = ({ mode, onAuthSuccess, onNavigate, onNotifica
     setError('');
 
     try {
-      const users = storage.getUsers();
       if (mode === 'signup') {
-        if (users.some(u => u.username === username)) throw new Error('Username taken');
-        
-        const newUser: User = {
-          id: Math.random().toString(36).substr(2, 9),
-          username, name, email, role, ward, password
-        };
-        storage.saveUser(newUser);
-        onAuthSuccess(newUser);
+        const result = await apiService.signup({
+          username,
+          email,
+          name,
+          password,
+          role,
+          ward
+        });
+        onAuthSuccess(result.user);
       } else {
-        const user = users.find(u => u.username === username && u.password === password);
-        if (!user) throw new Error('Invalid credentials');
-        if (user.role !== role) throw new Error(`Account registered as ${user.role}`);
-
-        const n = await composeSmartNotification('LOGIN', { user, email: user.email });
-        if (n) onNotification(n);
-        onAuthSuccess(user);
+        const result = await apiService.login({
+          username,
+          password,
+          role
+        });
+        onAuthSuccess(result.user);
       }
     } catch (err: any) {
       setError(err.message);

@@ -5,17 +5,33 @@ import Auth from './pages/Auth.tsx';
 import Dashboard from './pages/Dashboard.tsx';
 import ReportIssue from './pages/ReportIssue.tsx';
 import { User, EmailNotification } from './types.ts';
-import { storage } from './services/storageService.ts';
+import { apiService } from './services/apiService.ts';
 
 export type View = 'home' | 'login' | 'signup' | 'dashboard' | 'report';
 
 const App: React.FC = () => {
-  const [user, setUser] = useState<User | null>(storage.getCurrentUser());
-  const [view, setView] = useState<View>(user ? 'dashboard' : 'home');
+  const [user, setUser] = useState<User | null>(null);
+  const [view, setView] = useState<View>('home');
   const [toast, setToast] = useState<EmailNotification | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => { 
-    storage.seedData(); 
+  useEffect(() => {
+    // Check if user is already logged in
+    const checkAuth = async () => {
+      if (apiService.isAuthenticated()) {
+        try {
+          const currentUser = await apiService.getCurrentUser();
+          setUser(currentUser);
+          setView('dashboard');
+        } catch (error) {
+          console.error('Failed to fetch current user:', error);
+          apiService.logout();
+        }
+      }
+      setIsLoading(false);
+    };
+
+    checkAuth();
   }, []);
 
   const handleNotify = (n: EmailNotification) => {
@@ -25,15 +41,25 @@ const App: React.FC = () => {
 
   const handleAuthSuccess = (u: User) => {
     setUser(u);
-    storage.setCurrentUser(u);
     setView('dashboard');
   };
 
   const handleLogout = () => {
-    storage.setCurrentUser(null);
+    apiService.logout();
     setUser(null);
     setView('home');
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-600 to-slate-900">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mx-auto"></div>
+          <p className="text-white font-bold">Loading Fix My Ward...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Layout user={user} onLogout={handleLogout} onNavigate={(v: View) => setView(v)}>
