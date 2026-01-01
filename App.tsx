@@ -5,7 +5,7 @@ import Auth from './pages/Auth.tsx';
 import Dashboard from './pages/Dashboard.tsx';
 import ReportIssue from './pages/ReportIssue.tsx';
 import { User, EmailNotification } from './types.ts';
-import { storage } from './services/storageService.ts';
+import { apiService } from './services/apiService.ts';
 
 export type View = 'home' | 'login' | 'signup' | 'dashboard' | 'report';
 
