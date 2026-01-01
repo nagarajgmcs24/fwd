@@ -22,11 +22,28 @@ const Dashboard: React.FC<DashboardProps> = ({ user, onNavigate, onNotification 
   const activeWard = WARDS.find(w => w.name === user.ward);
 
   useEffect(() => {
-    const allIssues = storage.getIssues();
-    const filtered = user.role === UserRole.CITIZEN 
-      ? allIssues.filter(i => i.reportedById === user.id)
-      : allIssues.filter(i => i.ward === user.ward);
-    setIssues(filtered);
+    const fetchIssues = async () => {
+      try {
+        const result = await apiService.getIssues({ ward: user.ward });
+        setIssues(result.issues);
+
+        // Initialize Socket.io for real-time updates
+        apiService.initializeSocket(user.ward, (data) => {
+          // Refresh issues on real-time updates
+          apiService.getIssues({ ward: user.ward }).then(result => {
+            setIssues(result.issues);
+          });
+        });
+      } catch (error) {
+        console.error('Failed to fetch issues:', error);
+      }
+    };
+
+    fetchIssues();
+
+    return () => {
+      apiService.disconnectSocket();
+    };
   }, [user]);
 
   const filteredIssues = filter === 'ALL' ? issues : issues.filter(i => i.status === filter);
