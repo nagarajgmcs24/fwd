@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { UserRole, User } from '../types.ts';
-import { storage } from '../services/storageService.ts';
+import { apiService } from '../services/apiService.ts';
 import { WARDS } from '../constants/wards.ts';
-import { composeSmartNotification } from '../services/ai.ts';
 import { View } from '../App.tsx';
 
 interface AuthProps {
