@@ -50,6 +50,17 @@ const App: React.FC = () => {
     setView('home');
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-600 to-slate-900">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mx-auto"></div>
+          <p className="text-white font-bold">Loading Fix My Ward...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <Layout user={user} onLogout={handleLogout} onNavigate={(v: View) => setView(v)}>
       {view === 'home' && <Home onNavigate={setView} />}
