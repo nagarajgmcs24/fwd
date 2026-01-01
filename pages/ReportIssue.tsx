@@ -1,9 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { User, Issue, IssueStatus, EmailNotification } from '../types.ts';
-import { storage } from '../services/storageService.ts';
-import { analyzeIssue, composeSmartNotification } from '../services/ai.ts';
+import { User, EmailNotification } from '../types.ts';
+import { apiService } from '../services/apiService.ts';
+import { analyzeIssue } from '../services/ai.ts';
 import { View } from '../App.tsx';
-import { WARDS } from '../constants/wards.ts';
 
 interface ReportIssueProps {
   user: User;
